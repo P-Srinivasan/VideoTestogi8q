@@ -1,79 +1,141 @@
-<!doctype html>
-<html>
-    <head>
-        <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-        <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-        <script src="https://raw.githack.com/AR-js-org/studio-backend/master/src/modules/marker/tools/gesture-detector.js"></script>
-        <script src="https://raw.githack.com/AR-js-org/studio-backend/master/src/modules/marker/tools/gesture-handler.js"></script>
-        <script>
-            AFRAME.registerComponent('videohandler', {
-                init: function () {
-                    var marker = this.el;
-                    this.vid = document.querySelector("#vid");
+<!DOCTYPE html>
+<head>
+    <script src="../vendor/aframe.min.js"></script>
+    <script src="../vendor/aframe-ar.js"> </script>
+    <script src="../vendor/aframe-arcube.min.js"></script>
+    <script>
+        THREEx.ArToolkitContext.baseURL = 'https://rawgit.com/jeromeetienne/ar.js/master/three.js/'
+    </script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+    <style>
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: white;
+            text-align: center;
+            opacity: .66;
+            transition: .5s all;
+        }
 
-                    marker.addEventListener('markerFound', function () {
-                        this.toggle = true;
-                        this.vid.play();
-                    }.bind(this));
+        .header .correct {
+            color: green;
+        }
 
-                    marker.addEventListener('markerLost', function () {
-                        this.toggle = false;
-                        this.vid.pause();
-                    }.bind(this));
-                },
+        .header .incorrect {
+            color: darkred;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: white;
+            z-index: 255;
+            opacity: .66;
+            transition: 2s all;
+        }
+
+        .footer div {
+            float: left;
+            font-size: 24px;
+            min-width: 33%;
+            margin-bottom: 5px;
+            text-align: center;
+            transition: .5s all;
+        }
+
+        .footer.result .correct {
+            color: green;
+            font-weight: bold;
+        }
+
+        .footer.result .incorrect {
+            color: red;
+            text-decoration: line-through;
+        }
+
+        .footer.invisible {
+            bottom: -50px;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h2>Loading assets...</h2>
+</div>
+
+<div class="footer invisible">
+    <div class="incorrect">Lung</div>
+    <div class="correct">Heart</div>
+    <div class="incorrect">Kidneys</div>
+</div>
+
+<a-scene embedded arjs='debugUIEnabled: false; sourceType: webcam; detectionMode: mono;' vr-mode-ui="enabled: false">
+    <a-assets>
+        <a-asset-item id="heart" src="heart.gltf"></a-asset-item>
+    </a-assets>
+    <a-arcube>
+        <a-entity rotation="180 0 0">
+            <a-gltf-model src="#heart" position="-0.57225 2.466 -23.6805" scale=".01875 .01875 .01875"></a-gltf-model>
+        </a-entity>
+    </a-arcube>
+
+    <a-entity camera></a-entity>
+</a-scene>
+
+<script>
+    function askQuestion() {
+        document.querySelector('.header').innerHTML = '<h2>What is this?</h2>';
+        document.querySelector('.footer').classList.remove('invisible');
+    }
+
+    let loaded = false;
+    let tracking = false;
+    document.querySelector('a-assets').addEventListener('loaded', () => {
+        loaded = true;
+        if (!tracking) {
+            document.querySelector('.header').innerHTML = '<h2>Point to the AR Cube</h2>';
+        } else {
+            askQuestion();
+        }
+    });
+
+    document.querySelectorAll('.footer div').forEach((button) => {
+        console.log(button);
+        button.addEventListener('click', () => {
+            const correct = button.classList.contains('correct');
+            const header = document.querySelector('.header');
+            if (correct) {
+                header.innerHTML = '<h2 class="correct">Correct!</h2>';
+            } else {
+                header.innerHTML = '<h2 class="incorrect">Incorrect!</h2>';
+            }
+
+            document.querySelector('.footer').classList.add('result');
+            console.log(correct);
+        });
+    });
+
+    setTimeout(() => {
+        const markers = document.querySelectorAll('a-marker');
+        markers.forEach((marker) => {
+            marker.addEventListener('markerFound', () => {
+                if (tracking) {
+                    return;
+                }
+
+                tracking = true;
+
+                if (loaded) {
+                    askQuestion();
+                }
             });
-        </script>
-    </head>
-
-    <body style="margin: 0; overflow: hidden;">
-        <a-scene
-            vr-mode-ui="enabled: false"
-            loading-screen="enabled: false;"
-            arjs='sourceType: webcam; debugUIEnabled: false;'
-            id="scene"
-            embedded
-            gesture-detector
-        >
-            <a-assets>
-                <video
-                    id="vid"
-                    src="assets/asset.mp4"
-                    preload="auto"
-                    response-type="arraybuffer"
-                    loop
-                    crossorigin
-                    webkit-playsinline
-                    autoplay
-                    muted
-                    playsinline
-                ></video>
-            </a-assets>
-
-            <a-marker
-                type="pattern"
-                preset="custom"
-                url="assets/marker.patt"
-                videohandler
-                smooth="true"
-                smoothCount="10"
-                smoothTolerance="0.01"
-                smoothThreshold="5"
-                raycaster="objects: .clickable"
-                emitevents="true"
-                cursor="fuse: false; rayOrigin: mouse;"
-                id="markerA"
-            >
-                <a-video
-                    src="#vid"
-                    scale="1 1 1"
-                    position="0 0.1 0"
-                    rotation="-90 0 0"
-                    class="clickable"
-                    gesture-handler
-                ></a-video>
-            </a-marker>
-
-            <a-entity camera></a-entity>
-        </a-scene>
-    </body>
+        });
+        console.log(markers);
+    });
+</script>
+</body>
 </html>
